@@ -1,88 +1,87 @@
 // app/api/drive/[fileId]/route.ts
-import type {NextRequest} from "next/server";
-import {NextResponse} from "next/server";
-import {getDriveClient} from "@/lib/drive-client";
-import {getServerSession} from "next-auth/next";
-import {authOptions} from "@/app/api/auth/[...nextauth]/options";
-
-
+import { NextRequest, NextResponse } from 'next/server';
+import { getDriveClient } from '@/lib/drive-client';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 export async function GET(
-    request: NextRequest
+    req: NextRequest,
+    context: { params: { fileId: string } }
 ) {
-    const fileId = request.nextUrl.pathname.split('/').pop();
-
     try {
         const session = await getServerSession(authOptions);
         if (!session?.accessToken) {
-            return NextResponse.json({error: "Not authenticated"}, {status: 401});
+            return NextResponse.json({error: 'Not authenticated'}, {status: 401});
         }
-
+        const { fileId } = context.params;
         if (!fileId) {
-            return NextResponse.json({error: "File ID is required"}, {status: 400});
+            return NextResponse.json({error: 'File ID is required'}, {status: 400});
         }
-
         const drive = await getDriveClient();
-
-        // Get file metadata first
-        const file = await drive.files.get({
-            fileId: fileId,
-            fields: 'id, name, mimeType',
-            supportsAllDrives: true
-        });
-
-        // Get the actual file
-        const response = await drive.files.get(
-            {
-                fileId: fileId,
-                alt: 'media',
+        const isDownload = req.nextUrl.searchParams.get('download') === 'true';
+        try {
+            const fileMetadata = await drive.files.get({
+                fileId,
+                fields: 'mimeType,name',
                 supportsAllDrives: true,
-                acknowledgeAbuse: true
-            },
-            {responseType: 'stream'}
-        );
-
-        const stream = response.data as unknown as ReadableStream;
-        return new NextResponse(stream, {
-            headers: {
-                'Content-Type': file.data.mimeType || 'application/octet-stream',
-                'Content-Disposition': `attachment; filename="${file.data.name}"`,
-            },
-        });
+            });
+            const response = await drive.files.get({
+                fileId,
+                alt: 'media',
+                acknowledgeAbuse: true,
+            }, {
+                responseType: 'stream',
+            });
+            const headers = new Headers();
+            headers.set('Access-Control-Allow-Origin', '*');
+            headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+            headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+            headers.set('Content-Type', fileMetadata.data.mimeType || 'application/octet-stream');
+            if (isDownload) {
+                headers.set('Content-Disposition', `attachment; filename="${fileMetadata.data.name}"`);
+            }
+            const chunks = [];
+            for await (const chunk of response.data) {
+                chunks.push(chunk);
+            }
+            const buffer = Buffer.concat(chunks);
+            return new Response(buffer, { headers });
+        } catch (error: any) {
+            console.error('Drive API error:', error);
+            return NextResponse.json({
+                error: 'Failed to fetch file from Google Drive',
+                details: error.message
+            }, {status: 500});
+        }
     } catch (error: any) {
-        console.error('Download Error:', error);
+        console.error('File operation error:', error);
         return NextResponse.json(
-            {error: error.message || "Download failed"},
+            {error: error.message || 'Failed to process file'},
             {status: error.code || 500}
         );
     }
 }
-
 export async function DELETE(
-    request: NextRequest
+    req: NextRequest,
+    context: { params: { fileId: string } }
 ) {
-    const fileId = request.nextUrl.pathname.split('/').pop();
-
     try {
         const session = await getServerSession(authOptions);
         if (!session?.accessToken) {
-            return NextResponse.json({error: "Not authenticated"}, {status: 401});
+            return NextResponse.json({error: 'Not authenticated'}, {status: 401});
         }
-
+        const { fileId } = context.params;
         if (!fileId) {
-            return NextResponse.json({error: "File ID is required"}, {status: 400});
+            return NextResponse.json({error: 'File ID is required'}, {status: 400});
         }
-
         const drive = await getDriveClient();
         await drive.files.delete({
-            fileId: fileId,
-            supportsAllDrives: true
+            fileId,
         });
-
         return NextResponse.json({success: true});
     } catch (error: any) {
-        console.error('Delete Error:', error);
+        console.error('Delete file error:', error);
         return NextResponse.json(
-            {error: error.message || "Delete failed"},
+            {error: error.message || 'Failed to delete file'},
             {status: error.code || 500}
         );
     }

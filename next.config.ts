@@ -1,20 +1,13 @@
 // next.config.ts
 import type {NextConfig} from "next";
-
 const nextConfig: NextConfig = {
     poweredByHeader: false,
     images: {
         domains: ['drive.google.com', 'lh3.googleusercontent.com'],
     },
     webpack: (config) => {
-        // Suppress punycode warning
         config.ignoreWarnings = [
-            {
-                module: /node_modules\/punycode/,
-            },
-            {
-                message: /Critical dependency/,
-            }
+            {module: /node_modules\/punycode/}
         ];
         return config;
     },
@@ -48,5 +41,4 @@ const nextConfig: NextConfig = {
         ];
     }
 };
-
 export default nextConfig;

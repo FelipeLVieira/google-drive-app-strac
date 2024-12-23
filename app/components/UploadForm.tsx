@@ -5,7 +5,7 @@ import {Progress} from "@/components/ui/progress";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {Loader2, UploadCloud, X} from "lucide-react";
 import {useDropzone} from 'react-dropzone';
-
+import {config} from '@/config';
 interface UploadQueueItem {
     id: string;
     file: File;
@@ -13,17 +13,14 @@ interface UploadQueueItem {
     status: 'pending' | 'uploading' | 'completed' | 'error';
     error?: string;
 }
-
 interface UploadFormProps {
     onUpload: (file: File) => Promise<void>;
 }
-
 export function UploadForm({onUpload}: UploadFormProps) {
     const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
     const [showErrorDialog, setShowErrorDialog] = useState(false);
     const [currentError, setCurrentError] = useState<string | null>(null);
     const activeUploads = useRef(new Set<string>());
-
     const updateItemProgress = useCallback((id: string, progress: number) => {
         setUploadQueue(queue =>
             queue.map(item =>
@@ -31,11 +28,25 @@ export function UploadForm({onUpload}: UploadFormProps) {
             )
         );
     }, []);
-
+    const handleUploadError = useCallback((id: string, error: string) => {
+        setUploadQueue(queue =>
+            queue.map(item =>
+                item.id === id
+                    ? {...item, status: 'error', error, progress: 0}
+                    : item
+            )
+        );
+        setCurrentError(error);
+        setShowErrorDialog(true);
+        activeUploads.current.delete(id);
+    }, []);
     const processNextUpload = useCallback(async (item: UploadQueueItem) => {
         if (activeUploads.current.has(item.id)) return;
+        if (item.file.size > config.maxFileSize) {
+            handleUploadError(item.id, `File size exceeds the ${config.maxFileSize / (1024 * 1024)}MB limit`);
+            return;
+        }
         activeUploads.current.add(item.id);
-
         let progressInterval: NodeJS.Timeout | undefined;
         try {
             setUploadQueue(queue =>
@@ -43,14 +54,11 @@ export function UploadForm({onUpload}: UploadFormProps) {
                     qItem.id === item.id ? {...qItem, status: 'uploading'} : qItem
                 )
             );
-
-            progressInterval = setInterval(function () {
-                updateItemProgress(item.id, Math.min(90, item.progress + 10));
+            progressInterval = setInterval(() => {
+                updateItemProgress(item.id, item.progress + 10);
             }, 500);
-
             await onUpload(item.file);
             clearInterval(progressInterval);
-
             setUploadQueue(queue =>
                 queue.map(qItem =>
                     qItem.id === item.id
@@ -58,103 +66,113 @@ export function UploadForm({onUpload}: UploadFormProps) {
                         : qItem
                 )
             );
-
             setTimeout(() => {
                 setUploadQueue(queue => queue.filter(qItem => qItem.id !== item.id));
                 activeUploads.current.delete(item.id);
             }, 2000);
-
         } catch (error) {
             clearInterval(progressInterval);
             const errorMessage = error instanceof Error ? error.message : 'Upload failed';
-            setUploadQueue(queue =>
-                queue.map(qItem =>
-                    qItem.id === item.id
-                        ? {...qItem, status: 'error', error: errorMessage}
-                        : qItem
-                )
-            );
-            setCurrentError(errorMessage);
-            setShowErrorDialog(true);
-            activeUploads.current.delete(item.id);
+            handleUploadError(item.id, errorMessage);
         }
-    }, [onUpload, updateItemProgress]);
-
+    }, [onUpload, updateItemProgress, handleUploadError]);
     const onDrop = useCallback((acceptedFiles: File[]) => {
         const newItems = acceptedFiles.map(file => ({
-            id: Math.random().toString(36).slice(2),
+            id: crypto.randomUUID(),
             file,
             progress: 0,
             status: 'pending' as const
         }));
-
         setUploadQueue(queue => [...queue, ...newItems]);
-
-        // Process each file
         newItems.forEach(item => {
             processNextUpload(item);
         });
     }, [processNextUpload]);
-
     const {getRootProps, getInputProps, isDragActive} = useDropzone({
         onDrop,
-        multiple: true
+        multiple: true,
+        accept: config.supportedFileTypes.reduce((acc, type) => {
+            const mimeType = type.endsWith('/*') ? type : type;
+            acc[mimeType] = [];
+            return acc;
+        }, {} as Record<string, string[]>)
     });
-
     const removeFromQueue = useCallback((id: string) => {
         setUploadQueue(queue => queue.filter(item => item.id !== id));
         activeUploads.current.delete(id);
     }, []);
-
     return (
         <div className="space-y-4">
             <div
                 {...getRootProps()}
                 className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-          ${isDragActive ? 'border-primary bg-primary/10' : 'border-gray-300 hover:border-primary'}`}
+                    ${isDragActive
+                    ? 'border-blue-500/50 bg-blue-500/5'
+                    : 'border-gray-600/25 hover:border-gray-600/50'}`}
             >
-                <input {...getInputProps()} aria-label="File upload dropzone"/>
-                <UploadCloud className="mx-auto h-12 w-12 text-gray-400" aria-hidden="true"/>
-                <p className="mt-2 text-sm text-gray-600">
+                <input {...getInputProps()} />
+                <UploadCloud
+                    className={`mx-auto h-12 w-12 ${isDragActive ? 'text-blue-500/50' : 'text-gray-500/50'}`}
+                    aria-hidden="true"
+                />
+                <p className="mt-2 text-sm text-gray-400">
                     {isDragActive
                         ? "Drop the files here..."
-                        : "Drag 'n' drop files here, or click to select files"}
+                        : "Drag and drop files here, or click to select files"}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                    Maximum file size: {config.maxFileSize / (1024 * 1024)}MB
                 </p>
             </div>
-
             {/* Upload Queue */}
-            <div className="space-y-2" role="list" aria-label="Upload queue">
-                {uploadQueue.map(item => (
-                    <div key={item.id} className="bg-secondary/20 rounded-lg p-4" role="listitem">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm truncate flex-1">{item.file.name}</span>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeFromQueue(item.id)}
-                                disabled={item.status === 'uploading'}
-                                aria-label={`Remove ${item.file.name} from queue`}
-                            >
-                                <X className="h-4 w-4" aria-hidden="true"/>
-                            </Button>
-                        </div>
-                        <Progress
-                            value={item.progress}
-                            className="h-2"
-                            aria-label={`Upload progress for ${item.file.name}`}
-                        />
-                        <div className="flex justify-between mt-1">
-                            <span className="text-xs text-muted-foreground">
-                                {item.status === 'error' ? 'Error' : `${item.progress}%`}
-                            </span>
-                            {item.status === 'uploading' && (
-                                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true"/>
+            {uploadQueue.length > 0 && (
+                <div className="space-y-2">
+                    {uploadQueue.map(item => (
+                        <div
+                            key={item.id}
+                            className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-gray-300 truncate" title={item.file.name}>
+                                        {item.file.name}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        {(item.file.size / (1024 * 1024)).toFixed(2)} MB
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeFromQueue(item.id)}
+                                    disabled={item.status === 'uploading'}
+                                    className="text-gray-400 hover:text-gray-300"
+                                >
+                                    <X className="h-4 w-4"/>
+                                    <span className="sr-only">Remove {item.file.name} from queue</span>
+                                </Button>
+                            </div>
+                            <Progress
+                                value={item.progress}
+                                className="h-1"
+                            />
+                            <div className="flex justify-between items-center mt-1">
+                                <span className="text-xs text-gray-400">
+                                    {item.status === 'error' ? 'Error' :
+                                        item.status === 'completed' ? 'Completed' :
+                                            `${Math.round(item.progress)}%`}
+                                </span>
+                                {item.status === 'uploading' && (
+                                    <Loader2 className="h-4 w-4 animate-spin text-blue-500"/>
+                                )}
+                            </div>
+                            {item.error && (
+                                <p className="text-xs text-red-400 mt-1">{item.error}</p>
                             )}
                         </div>
-                    </div>
-                ))}
-            </div>
-
+                    ))}
+                </div>
+            )}
             <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
                 <DialogContent>
                     <DialogHeader>

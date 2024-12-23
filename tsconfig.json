@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2017",
     "lib": [
       "dom",
       "dom.iterable",
@@ -22,26 +22,45 @@
         "name": "next"
       }
     ],
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@/app/*": [
+        "./app/*"
       ],
       "@/components/*": [
         "./app/components/*"
       ],
       "@/lib/*": [
         "./lib/*"
-      ]
-    }
+      ],
+      "@/types/*": [
+        "./types/*"
+      ],
+      "@/config": ["./config.ts"]
+    },
+    "types": [
+      "node",
+      "react",
+      "react-dom",
+      "next",
+      "next/types/global"
+    ]
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "app/**/*",
+    "components/**/*",
+    "lib/**/*",
+    "types/**/*"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next",
+    "out"
   ]
 }

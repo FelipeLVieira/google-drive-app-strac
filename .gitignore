@@ -77,3 +77,5 @@ next-env.d.ts
 /processed_files/README.md
 /processed_files/tsconfig.json
 /process_files.py
+/.idea/jsLinters/eslint.xml
+/processed_files/FileListItem.tsx

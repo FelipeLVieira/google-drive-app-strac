@@ -1,22 +1,22 @@
 // config.ts
-/** Configuration constants for the application */
 export const config = {
-    /** Maximum allowed file size for uploads (10MB) */
     maxFileSize: 10 * 1024 * 1024, // 10MB
-
-    /** Number of files to fetch per page */
     filesPerPage: 30,
-
-    /**
-     * Allowed file types for upload
-     * Currently set to allow all file types
-     * Can be restricted to specific MIME types if needed
-     */
-    supportedFileTypes: ['*/*'],
-
-    /** API endpoint configurations */
+    supportedFileTypes: [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'text/plain',
+        'text/csv',
+        'image/*',
+        'video/*',
+        'audio/*'
+    ],
     api: {
-        /** Base endpoint for Drive API operations */
         drive: '/api/drive',
     }
 } as const;

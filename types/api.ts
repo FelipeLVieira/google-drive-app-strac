@@ -3,25 +3,40 @@
  * Represents a file or folder in Google Drive
  */
 export interface File {
-    id: string;                    // Unique identifier
-    name: string;                  // File/folder name
-    mimeType: string;             // MIME type (e.g., 'application/vnd.google-apps.folder' for folders)
-    modifiedTime: string;         // ISO timestamp of last modification
-    size?: string | number;       // File size in bytes (undefined for folders)
+    id: string;
+    name: string;
+    mimeType: string;
+    modifiedTime: string;
+    size?: string | number;
+    webViewLink?: string;
+    previewUrl?: string;
 }
-
 /**
  * Response structure for Drive API list operations
  */
 export interface DriveApiResponse {
     files: File[];
-    nextPageToken?: string;      // Token for pagination
+    folder?: {
+        id: string;
+        name: string;
+    } | null;
+    nextPageToken?: string;
 }
-
 /**
  * Standard API error response
  */
 export interface ApiError {
-    error: string;               // Error message
-    status: number;             // HTTP status code
+    error: string;
+    status: number;
+}
+/**
+ * Upload response structure
+ */
+export interface UploadResponse {
+    id: string;
+    name: string;
+    mimeType: string;
+    modifiedTime: string;
+    size: string;
+    webViewLink: string;
 }

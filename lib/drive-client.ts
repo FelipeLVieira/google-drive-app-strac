@@ -4,6 +4,7 @@ import {getServerSession} from "next-auth/next";
 import {authOptions} from "@/app/api/auth/[...nextauth]/options";
 
 const GOOGLE_DRIVE_SCOPES = [
+    'openid',
     'https://www.googleapis.com/auth/drive.file',
     'https://www.googleapis.com/auth/drive.metadata.readonly'
 ].join(' ');

@@ -3,6 +3,7 @@ import type {NextAuthOptions, Session} from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
 const GOOGLE_SCOPES = [
+    'openid',
     'https://www.googleapis.com/auth/drive.file',
     'https://www.googleapis.com/auth/drive.metadata.readonly'
 ].join(' ');

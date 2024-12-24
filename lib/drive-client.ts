@@ -2,13 +2,9 @@
 import {google} from "googleapis";
 import {getServerSession} from "next-auth/next";
 import {authOptions} from "@/app/api/auth/[...nextauth]/options";
+
 const GOOGLE_DRIVE_SCOPES = [
     'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/drive.readonly',
-    'https://www.googleapis.com/auth/spreadsheets.readonly',
-    'https://www.googleapis.com/auth/documents.readonly',
-    'https://www.googleapis.com/auth/presentations.readonly',
-    'https://www.googleapis.com/auth/drive.photos.readonly',
     'https://www.googleapis.com/auth/drive.metadata.readonly'
 ].join(' ');
 export const getDriveClient = async () => {

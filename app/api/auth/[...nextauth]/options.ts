@@ -1,16 +1,9 @@
 // app/api/auth/[...nextauth]/options.ts
-import type { NextAuthOptions, Session } from "next-auth";
+import type {NextAuthOptions, Session} from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+
 const GOOGLE_SCOPES = [
-    'openid',
-    'email',
-    'profile',
     'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/drive.readonly',
-    'https://www.googleapis.com/auth/spreadsheets.readonly',
-    'https://www.googleapis.com/auth/documents.readonly',
-    'https://www.googleapis.com/auth/presentations.readonly',
-    'https://www.googleapis.com/auth/drive.photos.readonly',
     'https://www.googleapis.com/auth/drive.metadata.readonly'
 ].join(' ');
 type CustomSession = Session & { error?: string };
@@ -30,7 +23,7 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
-        async jwt({ token, account }) {
+        async jwt({token, account}) {
             if (account) {
                 token.accessToken = account.access_token;
                 token.refreshToken = account.refresh_token;
@@ -39,7 +32,7 @@ export const authOptions: NextAuthOptions = {
             }
             return token;
         },
-        async session({ session, token }: { session: CustomSession; token: any }) {
+        async session({session, token}: { session: CustomSession; token: any }) {
             session.accessToken = token.accessToken;
             session.error = token.error;
             return session;
